@@ -1,0 +1,406 @@
+<meta charset="utf-8">
+<title>Quiz Docker FWA</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: hoja de examen — una columna estrecha, pestañas por tipo de pregunta, marcador fijo arriba */
+:root {
+  --bg: #f3f5f8;
+  --paper: #ffffff;
+  --ink: #15202c;
+  --muted: #5b6878;
+  --line: #d9e0e8;
+  --accent: #1d5fd6;
+  --accent-soft: #e4ecfb;
+  --ok: #17803d;
+  --ok-soft: #e3f4e8;
+  --bad: #c22f36;
+  --bad-soft: #fbe6e7;
+  --code-bg: #eef1f5;
+  --display: "Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151c; --paper: #17202a; --ink: #e6ebf1; --muted: #9aa7b6; --line: #2a3644;
+    --accent: #6c9cf0; --accent-soft: #1d2b42; --ok: #4cc174; --ok-soft: #16301f;
+    --bad: #f0767b; --bad-soft: #3a1c1f; --code-bg: #1f2a36; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151c; --paper: #17202a; --ink: #e6ebf1; --muted: #9aa7b6; --line: #2a3644;
+  --accent: #6c9cf0; --accent-soft: #1d2b42; --ok: #4cc174; --ok-soft: #16301f;
+  --bad: #f0767b; --bad-soft: #3a1c1f; --code-bg: #1f2a36; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 760px; margin: 0 auto; }
+header.top { padding-block: 28px 8px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 2rem; line-height: 1.15; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 6px 0 0; }
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  padding-block: 12px; border-bottom: 1px solid var(--line); display: grid; gap: 10px;
+}
+.tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; }
+.tab {
+  font: 600 0.9rem var(--body); color: var(--ink); background: var(--paper); border: 1px solid var(--line);
+  border-radius: 999px; padding: 6px 14px; cursor: pointer; white-space: nowrap;
+}
+.tab[aria-selected="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.tab:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.score { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 0.9rem; color: var(--muted); }
+.score b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.tools { margin-left: auto; display: flex; gap: 8px; }
+.btn {
+  font: 600 0.9rem var(--body); border-radius: 8px; padding: 7px 14px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+section.panel { padding-top: 20px; display: grid; gap: 14px; }
+.intro { color: var(--muted); margin: 0; max-width: 65ch; }
+.q { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.q .n { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.q p.stem { margin: 0; font-weight: 700; }
+.opts { display: grid; gap: 6px; }
+.opt {
+  text-align: left; font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 12px; cursor: pointer; display: flex; gap: 10px; align-items: baseline;
+}
+.opt .l { font-family: var(--mono); font-weight: 600; color: var(--muted); }
+.opt:hover:not(:disabled) { background: var(--accent-soft); }
+.opt:disabled { cursor: default; }
+.opt.ok { background: var(--ok-soft); border-color: var(--ok); }
+.opt.bad { background: var(--bad-soft); border-color: var(--bad); }
+.why { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--code-bg); font-size: 0.95rem; }
+.why.ok { border-left: 3px solid var(--ok); }
+.why.bad { border-left: 3px solid var(--bad); }
+code, .cmd { font-family: var(--mono); font-size: 0.88em; background: var(--code-bg); border-radius: 4px; padding: 1px 5px; overflow-wrap: anywhere; }
+.match { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; }
+.match ol { margin: 0; padding-left: 1.6em; display: grid; gap: 6px; }
+.match ol li { padding-left: 4px; }
+.mrow { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; align-items: center; padding: 6px; border-radius: 8px; }
+.mrow select { font: 600 0.95rem var(--mono); padding: 4px; border-radius: 6px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); width: 64px; }
+.mrow.ok { background: var(--ok-soft); }
+.mrow.bad { background: var(--bad-soft); }
+.mrow .fix { font-family: var(--mono); font-size: 0.8rem; color: var(--bad); }
+.vf { display: flex; gap: 8px; }
+.vf .opt { flex: 0 0 auto; justify-content: center; min-width: 110px; }
+textarea, input.ans {
+  width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px; resize: vertical;
+}
+input.ans { font-family: var(--mono); font-size: 0.92rem; }
+.model { margin: 0; padding: 12px 14px; border-radius: 8px; background: var(--accent-soft); }
+.model ul { margin: 6px 0 0; padding-left: 1.2em; }
+.selfcheck { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 0.9rem; color: var(--muted); }
+.wrongcmd { font-family: var(--mono); font-size: 0.92rem; background: var(--bad-soft); border-radius: 6px; padding: 8px 10px; overflow-x: auto; white-space: pre; }
+.rightcmd { font-family: var(--mono); font-size: 0.92rem; background: var(--ok-soft); border-radius: 6px; padding: 8px 10px; overflow-x: auto; white-space: pre; }
+h2 { font-family: var(--display); font-size: 1.15rem; margin: 10px 0 0; }
+@media (max-width: 600px) {
+  h1 { font-size: 1.6rem; }
+  .match { grid-template-columns: 1fr; }
+  .tools { margin-left: 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .opt, .tab, .mrow { transition: background-color .15s, border-color .15s; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Quiz de Docker · FWA</h1>
+    <p class="sub">Clase 1 + Guías 1, 2 y 3. Mismo formato del examen: subrayar, pareo, verdadero/falso, abiertas y comandos.</p>
+  </header>
+
+  <div class="bar">
+    <nav class="tabs" role="tablist" id="tabs"></nav>
+    <div class="score" id="score"></div>
+  </div>
+
+  <main id="panels"></main>
+</div>
+
+<script>
+const L = 'abcd';
+
+const MCQ = [
+  ['Docker es principalmente…', ['Un sistema operativo ligero', 'Una plataforma de código abierto para crear, empaquetar, distribuir y ejecutar aplicaciones en contenedores', 'Un hipervisor que virtualiza hardware', 'Un lenguaje para escribir microservicios'], 1, 'Automatiza el despliegue de aplicaciones dentro de contenedores de software.'],
+  ['A diferencia de una máquina virtual, un contenedor…', ['Incluye un sistema operativo huésped completo', 'Necesita un hipervisor', 'Comparte el kernel del sistema operativo anfitrión (host)', 'Consume más CPU y RAM'], 2, 'La VM virtualiza hardware y lleva su propio SO; el contenedor usa el del host a través de Docker Engine.'],
+  ['Una imagen Docker es…', ['Una instancia en ejecución', 'Una plantilla de solo lectura con las instrucciones para crear un contenedor', 'Un volumen montado desde el host', 'Un registro en la nube'], 1, 'La instancia en ejecución es el contenedor.'],
+  ['Un contenedor es…', ['Una instancia ejecutable de una imagen', 'El archivo de texto con instrucciones', 'El repositorio donde se guardan imágenes', 'La API REST del daemon'], 0, 'De una misma imagen se pueden crear muchos contenedores.'],
+  ['Cada instrucción de un Dockerfile genera…', ['Un contenedor', 'Una capa (layer) de la imagen', 'Una red', 'Un volumen'], 1, 'Las capas se reutilizan (caché) y se comparten entre imágenes.'],
+  ['¿Qué instrucción indica la imagen base?', ['RUN', 'WORKDIR', 'FROM', 'CMD'], 2, 'FROM imagen:tag. Siempre es la primera.'],
+  ['Si escribes FROM node sin tag, Docker usa…', ['La versión más antigua', 'latest', 'La versión instalada en tu PC', 'Da error'], 1, 'El tag por defecto es «latest».'],
+  ['EXPOSE 5173…', ['Abre el puerto automáticamente en tu PC', 'Documenta el puerto en que escucha el contenedor; se publica con -p', 'Cambia el puerto de Vite', 'Crea una red nueva'], 1, 'Sin -p 5173:5173 en docker run (o ports en Compose) no llegas desde la PC.'],
+  ['¿Qué diferencia hay entre RUN y CMD?', ['Ninguna', 'RUN se ejecuta al construir la imagen; CMD al iniciar el contenedor', 'RUN al iniciar; CMD al construir', 'CMD solo funciona en Compose'], 1, 'Por eso npm install va con RUN y npm run dev con CMD.'],
+  ['¿Qué componente escucha las peticiones de la API y gestiona imágenes, contenedores, redes y volúmenes?', ['El cliente Docker', 'El registro', 'El daemon Docker', 'Docker Hub'], 2, 'El cliente (docker run, build…) envía peticiones a la API REST del daemon.'],
+  ['El cliente y el daemon se comunican mediante…', ['Una API REST (por socket)', 'FTP', 'SQL', 'Correo SMTP'], 0, 'La comunicación puede hacerse con un socket de dominio.'],
+  ['Docker Hub es…', ['Un IDE para escribir Dockerfiles', 'Un registro en la nube para almacenar, compartir y descargar imágenes', 'El motor que ejecuta contenedores', 'Una extensión de VS Code'], 1, 'Como «GitHub, pero para imágenes de Docker».'],
+  ['¿Qué nombre es correcto para subir a Docker Hub?', ['contact-manager@eniriel', 'eniriel:contact-manager/v1', 'eniriel/contact-manager:v1', 'v1/contact-manager:eniriel'], 2, 'usuario/imagen:tag'],
+  ['docker push…', ['Descarga una imagen de Docker Hub', 'Sube una imagen local a un repositorio de Docker Hub', 'Ejecuta un contenedor', 'Construye una imagen'], 1, 'docker pull es el que descarga.'],
+  ['Docker Compose es…', ['Un reemplazo del Dockerfile', 'Una herramienta para definir y ejecutar aplicaciones multicontenedor con un archivo YAML', 'Un registro privado', 'Un comando para borrar imágenes'], 1, 'Un archivo (compose.yaml) y un comando (docker compose up).'],
+  ['docker compose down…', ['Solo detiene los contenedores', 'Detiene y elimina los contenedores y la red', 'Borra las imágenes', 'Reconstruye la imagen'], 1, 'docker compose stop solo detiene. down -v borra además los volúmenes.'],
+  ['En ports: "8080:5173", el 8080 es…', ['El puerto del contenedor', 'El puerto de tu PC (host)', 'El puerto de Docker Hub', 'El ID del contenedor'], 1, 'host : contenedor. Abrirías http://localhost:8080.'],
+  ['¿Qué archivo indica lo que NO se copia a la imagen?', ['.gitignore', '.dockerignore', 'compose.yaml', 'package.json'], 1, 'Allí va node_modules: las dependencias se instalan dentro del contenedor.'],
+  ['En el compose de la guía, el volumen /app/node_modules sirve para…', ['Borrar las dependencias', 'Conservar las dependencias instaladas dentro del contenedor', 'Subir node_modules a Docker Hub', 'Compartir node_modules con la PC'], 1, 'Evita que el montaje .:/app las tape con la carpeta de Windows.'],
+  ['restart: unless-stopped significa…', ['Nunca se reinicia', 'Se reinicia si se detiene inesperadamente, salvo que tú lo detengas', 'Se reinicia cada minuto', 'Solo se reinicia al reconstruir'], 1, 'Otros valores: no, always, on-failure.'],
+];
+
+const MATCH = [
+  { title: 'Instrucciones del Dockerfile', left: ['FROM', 'WORKDIR', 'COPY', 'ADD', 'RUN', 'ENV', 'EXPOSE', 'CMD', 'ENTRYPOINT', 'HEALTHCHECK'], right: [
+    [1, 'Indica la imagen base para las siguientes instrucciones'],
+    [2, 'Especifica el directorio de trabajo de las demás instrucciones'],
+    [3, 'Añade archivos a la ruta indicada, solo los copia'],
+    [4, 'Copia archivos y además extrae comprimidos y admite URLs remotas'],
+    [5, 'Ejecuta un comando en una nueva capa al construir la imagen'],
+    [6, 'Configura variables de entorno'],
+    [7, 'Indica el puerto en el que escucha el contenedor (se mapea con -p)'],
+    [8, 'Valores por defecto al iniciar el contenedor; solo vale la última aparición'],
+    [9, 'Fija el ejecutable; anula lo especificado con CMD'],
+    [10, 'Comprueba periódicamente el estado del contenedor'],
+  ]},
+  { title: 'Conceptos de la clase', left: ['Contenedor de software', 'Imagen', 'Host (anfitrión)', 'Daemon Docker', 'Cliente Docker', 'Registro', 'Máquina virtual', 'Socket'], right: [
+    [1, 'Aplicaciones aisladas que se ejecutan sobre un mismo núcleo de SO, usando el del host'],
+    [2, 'Plantilla de solo lectura que el motor usa para crear y ejecutar un contenedor'],
+    [3, 'Equipo que ofrece servicios a otros equipos conectados a la red'],
+    [4, 'Escucha peticiones de la API y gestiona imágenes, contenedores, redes y volúmenes'],
+    [5, 'Modo principal de interactuar con Docker; envía comandos como docker run a la API'],
+    [6, 'Lugar donde se almacenan las imágenes, por ejemplo Docker Hub'],
+    [7, 'Virtualiza hardware y ejecuta un SO completo sobre otro SO'],
+    [8, 'Objeto de software que enlaza el lado del servidor con el del cliente'],
+  ]},
+  { title: 'Comandos y su objetivo', left: ['docker build -t app .', 'docker run -p 5173:5173 app', 'docker ps -a', 'docker images', 'docker push', 'docker pull', 'docker compose up --build', 'docker compose ps', 'docker compose logs -f', 'docker exec -it web sh'], right: [
+    [1, 'Construir una imagen desde el Dockerfile'],
+    [2, 'Crear y ejecutar un contenedor publicando un puerto'],
+    [3, 'Ver todos los contenedores, incluso detenidos'],
+    [4, 'Listar las imágenes locales'],
+    [5, 'Subir una imagen a Docker Hub'],
+    [6, 'Descargar una imagen de Docker Hub'],
+    [7, 'Construir e iniciar todos los servicios del compose'],
+    [8, 'Listar los servicios de Compose y su estado'],
+    [9, 'Seguir los registros de los servicios'],
+    [10, 'Entrar a la terminal de un contenedor (Alpine)'],
+  ]},
+];
+
+const VF = [
+  ['Los contenedores necesitan un hipervisor para ejecutarse.', false, 'Eso lo necesitan las máquinas virtuales. Los contenedores corren sobre Docker Engine y comparten el kernel del host.'],
+  ['Se pueden crear varios contenedores a partir de una misma imagen.', true, 'La imagen es la plantilla; cada contenedor es una instancia.'],
+  ['EXPOSE publica el puerto hacia tu computadora.', false, 'Solo documenta el puerto. Se publica con -p en docker run o con ports en Compose.'],
+  ['Si un Dockerfile tiene dos CMD, solo tiene validez el último.', true, 'Así lo indica la tabla de comandos de la clase.'],
+  ['ADD y COPY hacen exactamente lo mismo.', false, 'ADD además extrae archivos comprimidos y acepta URLs remotas; COPY solo copia.'],
+  ['RUN se ejecuta cada vez que arranca el contenedor.', false, 'RUN se ejecuta al construir la imagen. Lo que corre al arrancar es CMD.'],
+  ['Las imágenes Docker son plantillas de solo lectura.', true, 'Lo que cambia es el contenedor en ejecución, no la imagen.'],
+  ['Un mismo cliente Docker puede comunicarse con varios daemons.', true, 'Dato de la clase (arquitectura cliente–daemon–registro).'],
+  ['Docker Hub solo permite repositorios públicos.', false, 'Permite públicos (cualquiera descarga) y privados (solo tú o quien autorices).'],
+  ['docker pull sube una imagen a Docker Hub.', false, 'pull descarga; push sube.'],
+  ['docker ps muestra también los contenedores detenidos.', false, 'Solo los que están corriendo. Para todos: docker ps -a.'],
+  ['docker compose down borra los datos guardados en volúmenes con nombre.', false, 'Los volúmenes se conservan. Solo se borran con docker compose down -v.'],
+  ['Docker Compose funciona en producción, desarrollo, pruebas y en integración continua (CI).', true, 'La guía lo menciona: funciona en todos los entornos.'],
+  ['Dentro de Compose, una app se conecta a la base de datos usando localhost.', false, 'Usa el nombre del servicio (por ejemplo db): Compose pone a los servicios en la misma red.'],
+  ['node_modules debe ir en .dockerignore.', true, 'Las dependencias se instalan dentro del contenedor con npm install.'],
+  ['Al reiniciar un servicio que no cambió, Compose reutiliza el contenedor existente.', true, 'Es la ventaja de «desarrollo rápido de aplicaciones».'],
+];
+
+const OPEN = [
+  ['¿Qué es Docker y qué problema resuelve?', 'Docker es una plataforma de código abierto que empaqueta una aplicación con todas sus dependencias (librerías, herramientas, configuración, entorno de ejecución) en un contenedor portable. Resuelve el problema de «en mi máquina funciona»: el contenedor se ejecuta igual en cualquier equipo, servidor o nube que tenga Docker.', ['Plataforma de código abierto', 'Empaqueta app + dependencias en un contenedor', '«En mi máquina funciona»', 'Se ejecuta igual en cualquier entorno']],
+  ['Explica la diferencia entre una máquina virtual y un contenedor.', 'La máquina virtual virtualiza hardware: sobre un hipervisor corre un sistema operativo huésped completo por cada aplicación, por eso es pesada, lenta de arrancar y consume mucha CPU, RAM y disco. El contenedor no lleva SO propio: comparte el kernel del SO anfitrión mediante Docker Engine y solo agrega las bibliotecas que la app necesita; es ligero y arranca en segundos. Ejemplo: VM = tener 5 PCs dentro de tu PC; Docker = varias apps independientes dentro de tu PC.', ['VM: hipervisor + SO huésped completo', 'Contenedor: comparte el kernel del host (Docker Engine)', 'Rendimiento y recursos', 'Ejemplo de las 5 PCs']],
+  ['¿Qué relación hay entre Dockerfile, imagen y contenedor?', 'El Dockerfile es un archivo de texto plano con instrucciones (FROM, COPY, RUN, CMD…). Con docker build se convierte en una imagen: una plantilla de solo lectura formada por capas, una por instrucción. Con docker run la imagen se convierte en un contenedor: la instancia en ejecución. De una imagen se pueden crear muchos contenedores.', ['Dockerfile → build → imagen → run → contenedor', 'Imagen = plantilla de solo lectura por capas', 'Contenedor = instancia ejecutable']],
+  ['Describe la arquitectura de Docker: cliente, daemon y registro.', 'El cliente es lo que usamos (docker build, pull, run): envía peticiones a la API REST del daemon. El daemon, en el Docker host, escucha esas peticiones y gestiona imágenes, contenedores, redes y volúmenes. El registro (como Docker Hub) almacena las imágenes; si al hacer run la imagen no está en el host, el daemon la descarga (pull) del registro y luego crea el contenedor.', ['Cliente → API REST → daemon', 'Daemon gestiona imágenes, contenedores, redes, volúmenes', 'Registro almacena imágenes (Docker Hub)']],
+  ['¿Qué es Docker Hub y para qué sirven los tags?', 'Docker Hub es un registro en la nube de Docker Inc. para almacenar, compartir y descargar imágenes, con repositorios públicos y privados e imágenes oficiales (node, nginx, mysql). Los tags identifican versiones de una imagen (v1, v2, latest) para manejar distintas versiones de la app. Se sube con docker push usuario/imagen:tag y se descarga con docker pull usuario/imagen:tag.', ['Registro en la nube', 'Público / privado / oficiales', 'Tags = versiones (por defecto latest)', 'push / pull']],
+  ['¿Qué es Docker Compose y cuáles son sus ventajas?', 'Es una herramienta para definir y ejecutar aplicaciones multicontenedor en un único archivo YAML (compose.yaml) y levantarlas con un solo comando. Ventajas: control simplificado (todo en un archivo), colaboración eficiente (el YAML se comparte entre desarrollo y operaciones), desarrollo rápido (reutiliza contenedores que no cambiaron) y portabilidad entre entornos (admite variables).', ['Multicontenedor con un YAML', 'Control simplificado', 'Colaboración', 'Desarrollo rápido (caché)', 'Portabilidad (variables)']],
+  ['Explica cada parte del compose.yaml de la guía 3.', 'services define los contenedores; app es el nombre del servicio; build con context: . y dockerfile: Dockerfile construye la imagen desde la carpeta actual; container_name le da nombre al contenedor; ports "5173:5173" conecta el puerto de la PC con el del contenedor; volumes .:/app sincroniza el proyecto con /app y /app/node_modules conserva las dependencias del contenedor; restart: unless-stopped lo reinicia si se detiene inesperadamente.', ['services / app', 'build: context y dockerfile', 'container_name', 'ports host:contenedor', 'volumes (.:/app y /app/node_modules)', 'restart']],
+  ['¿Qué cambios necesita una aplicación para conectarse a una base de datos dentro de Docker Compose?', 'Agregar un servicio para la base de datos con su imagen oficial (por ejemplo mysql:8.4); definir variables de entorno con usuario, contraseña y nombre de la base; un volumen con nombre para que los datos persistan después de down; depends_on para que la app arranque después de la base; y conectarse usando el nombre del servicio (db) como servidor en lugar de localhost, porque Compose crea una red donde cada servicio se encuentra por su nombre.', ['Servicio db con image', 'environment (usuario, contraseña, base)', 'Volumen para persistir', 'depends_on', 'Host = nombre del servicio, no localhost']],
+  ['¿Cuáles son las principales ventajas de usar Docker?', 'Consistencia (la app corre igual en desarrollo y producción), portabilidad (se mueve entre máquinas y nubes sin problemas), modularidad y escalabilidad (microservicios que se empaquetan y escalan por separado) y eficiencia (más ligero que una VM porque no necesita un SO completo). También aislamiento (sin conflictos de versiones) y rapidez (arranca en segundos).', ['Consistencia', 'Portabilidad', 'Modularidad y escalabilidad', 'Eficiencia', 'Aislamiento y rapidez']],
+  ['¿Por qué en el Dockerfile se copia package*.json antes de COPY . . y para qué sirve .dockerignore?', 'Cada instrucción es una capa en caché. Si se copian primero solo las dependencias y luego se hace npm install, cuando cambias el código pero no las dependencias Docker reutiliza la capa de npm install y el build es mucho más rápido. El .dockerignore indica qué no copiar a la imagen (node_modules, logs, archivos del editor), lo que la hace más liviana y evita meter dependencias de la PC.', ['Capas y caché', 'npm install no se repite si no cambian dependencias', '.dockerignore excluye node_modules, logs…']],
+  ['Actividad de clase: ¿qué necesita realmente una aplicación para funcionar en otra computadora?', 'Las versiones necesarias (por ejemplo Node 24), las librerías y dependencias (las de package.json), las configuraciones (puertos, variables de entorno), un sistema operativo compatible y las bases de datos u otros servicios que use. Docker empaqueta todo eso en la imagen para que no dependa de lo que tenga instalada la otra PC.', ['Versiones', 'Librerías y dependencias', 'Configuraciones', 'Sistema operativo', 'Bases de datos u otros servicios']],
+  ['¿Qué ventajas tiene Docker frente a gestores de paquetes, herramientas de configuración y máquinas virtuales?', 'Frente a gestores de paquetes (RPM, DPKG): no hay que instalar dependencias por separado ni pelear con versiones, todo va en una imagen. Frente a herramientas de configuración (Ansible, Puppet…): no hacen falta, la imagen ya es autocontenida y corre igual en distintos entornos. Frente a VMs: Docker es más ligero, rápido y eficiente, aunque pierde algo de aislamiento y seguridad.', ['Paquetes: todo en una imagen', 'Configuración: imagen autocontenida', 'VM: más ligero; algo menos aislado']],
+];
+
+const CMD = [
+  ['Construir la imagen «mi-app»', 'docker build -t mi-app', 'docker build -t mi-app .', 'Falta el punto final: el contexto de construcción (carpeta actual).'],
+  ['Ejecutar y abrir en http://localhost:5173', 'docker run -p 5173 mi-app', 'docker run -it -p 5173:5173 mi-app', 'El mapeo es puerto_PC:puerto_contenedor.'],
+  ['Subir la imagen a Docker Hub', 'docker push mi-app:v1', 'docker push eniriel/mi-app:v1', 'Debe empezar con tu usuario (y antes haber hecho docker tag o build con ese nombre).'],
+  ['Construir la imagen «Mi-App»', 'docker build -t Mi-App .', 'docker build -t mi-app .', 'Los nombres de imagen van en minúsculas.'],
+  ['Entrar a un contenedor basado en node:24-alpine', 'docker exec -it web /bin/bash', 'docker exec -it web sh', 'Alpine no trae bash; se usa sh.'],
+  ['Construir e iniciar con Compose', 'docker compose up -build', 'docker compose up --build', 'Las opciones largas llevan dos guiones.'],
+  ['Borrar el contenedor «web» que está corriendo', 'docker rm web', 'docker stop web   y luego   docker rm web', 'rm no borra uno en ejecución. También: docker rm -f web.'],
+  ['Ver los logs del contenedor «web»', 'docker logs -ft', 'docker logs -ft web', 'Falta el nombre (o ID) del contenedor.'],
+  ['CMD para que Vite sea accesible desde la PC', 'CMD ["npm", "run", "dev"]', 'CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]', 'Sin --host 0.0.0.0 Vite solo escucha dentro del contenedor.'],
+  ['Ver los contenedores de Compose', 'docker compose up ps', 'docker compose ps', 'up inicia; ps lista.'],
+  ['Detener Compose y borrar también los datos de la base', 'docker compose down', 'docker compose down -v', '-v elimina los volúmenes.'],
+  ['Descargar la versión 2', 'docker pull eniriel/mi-app', 'docker pull eniriel/mi-app:v2', 'Sin tag descarga latest, no v2.'],
+];
+
+const TABS = [
+  ['mcq', 'Subrayar', MCQ.length],
+  ['pareo', 'Pareo', MATCH.reduce((a, m) => a + m.left.length, 0)],
+  ['vf', 'Verdadero / Falso', VF.length],
+  ['abiertas', 'Abiertas', OPEN.length],
+  ['comandos', 'Comandos', CMD.length],
+];
+const score = {};
+TABS.forEach(([id]) => score[id] = { ok: 0, done: 0 });
+
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const k of kids.flat()) e.append(k);
+  return e;
+}
+function shuffle(a) { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; }
+
+function renderScore(active) {
+  const s = score[active], total = TABS.find(t => t[0] === active)[2];
+  const all = Object.values(score).reduce((a, x) => ({ ok: a.ok + x.ok, done: a.done + x.done }), { ok: 0, done: 0 });
+  const box = document.getElementById('score');
+  box.replaceChildren(
+    el('span', {}, 'Esta sección: ', el('b', {}, `${s.ok}/${s.done}`), ` correctas · ${total - s.done} sin responder`),
+    el('span', {}, 'Total: ', el('b', {}, `${all.ok}/${all.done}`)),
+    el('div', { class: 'tools' },
+      el('button', { class: 'btn', onclick: () => { score[active] = { ok: 0, done: 0 }; build(active, true); } }, 'Reiniciar y barajar')
+    )
+  );
+}
+function mark(sec, ok) { score[sec].done++; if (ok) score[sec].ok++; renderScore(sec); }
+
+function buildMCQ(p, shuf) {
+  p.append(el('p', { class: 'intro' }, 'Subraya la respuesta correcta. Toca una opción para ver si acertaste y por qué.'));
+  (shuf ? shuffle(MCQ) : MCQ).forEach(([stem, opts, ans, why], i) => {
+    const order = shuf ? shuffle(opts.map((o, k) => k)) : opts.map((o, k) => k);
+    const wrap = el('div', { class: 'opts' });
+    const card = el('article', { class: 'q' }, el('span', { class: 'n' }, `Pregunta ${i + 1}`), el('p', { class: 'stem' }, stem), wrap);
+    order.forEach((k, pos) => {
+      const b = el('button', { class: 'opt', type: 'button', onclick: () => {
+        wrap.querySelectorAll('button').forEach(x => x.disabled = true);
+        const ok = k === ans;
+        b.classList.add(ok ? 'ok' : 'bad');
+        if (!ok) wrap.querySelector(`[data-k="${ans}"]`).classList.add('ok');
+        card.append(el('p', { class: 'why ' + (ok ? 'ok' : 'bad') }, (ok ? 'Correcto. ' : 'Incorrecto. ') + why));
+        mark('mcq', ok);
+      }}, el('span', { class: 'l' }, L[pos] + ')'), el('span', {}, opts[k]));
+      b.dataset.k = k;
+      wrap.append(b);
+    });
+    p.append(card);
+  });
+}
+
+function buildMatch(p, shuf) {
+  p.append(el('p', { class: 'intro' }, 'Traslada el número de la columna izquierda al concepto que le corresponde a la derecha. Luego presiona «Revisar».'));
+  MATCH.forEach((m, mi) => {
+    const rows = shuffle(m.right);
+    const ol = el('ol', {}, m.left.map(t => el('li', {}, el('span', { class: 'cmd' }, t))));
+    const list = el('div', {});
+    rows.forEach(([num, txt], ri) => {
+      const sel = el('select', { id: `m${mi}-${ri}`, 'aria-label': txt }, el('option', { value: '' }, '—'), m.left.map((_, k) => el('option', { value: k + 1 }, String(k + 1))));
+      const r = el('div', { class: 'mrow' }, sel, el('span', {}, txt));
+      r.dataset.ans = num;
+      list.append(r);
+    });
+    const btn = el('button', { class: 'btn primary', type: 'button', onclick: () => {
+      list.querySelectorAll('.mrow').forEach(r => {
+        const v = Number(r.querySelector('select').value), ok = v === Number(r.dataset.ans);
+        r.classList.remove('ok', 'bad'); r.classList.add(ok ? 'ok' : 'bad');
+        r.querySelector('.fix')?.remove();
+        if (!ok) r.append(el('span', { class: 'fix' }, `→ ${r.dataset.ans}`));
+        r.querySelector('select').disabled = true;
+        mark('pareo', ok);
+      });
+      btn.disabled = true;
+    }}, 'Revisar');
+    p.append(el('article', { class: 'q' }, el('span', { class: 'n' }, `Pareo ${mi + 1}`), el('p', { class: 'stem' }, m.title), el('div', { class: 'match' }, ol, list), el('div', {}, btn)));
+  });
+}
+
+function buildVF(p, shuf) {
+  p.append(el('p', { class: 'intro' }, 'Marca V o F. Al responder aparece la justificación: en el examen, si es falsa, explica por qué.'));
+  (shuf ? shuffle(VF) : VF).forEach(([stem, ans, why], i) => {
+    const wrap = el('div', { class: 'vf' });
+    const card = el('article', { class: 'q' }, el('span', { class: 'n' }, `Enunciado ${i + 1}`), el('p', { class: 'stem' }, stem), wrap);
+    [['Verdadero', true], ['Falso', false]].forEach(([t, v]) => {
+      const b = el('button', { class: 'opt', type: 'button', onclick: () => {
+        wrap.querySelectorAll('button').forEach(x => x.disabled = true);
+        const ok = v === ans;
+        b.classList.add(ok ? 'ok' : 'bad');
+        card.append(el('p', { class: 'why ' + (ok ? 'ok' : 'bad') }, `${ans ? 'Verdadero' : 'Falso'}. ${why}`));
+        mark('vf', ok);
+      }}, t);
+      wrap.append(b);
+    });
+    p.append(card);
+  });
+}
+
+function buildOpen(p, shuf) {
+  p.append(el('p', { class: 'intro' }, 'Escribe tu respuesta con tus palabras y después compárala con la respuesta modelo. Califícate con honestidad según los puntos clave.'));
+  (shuf ? shuffle(OPEN) : OPEN).forEach(([stem, model, keys], i) => {
+    const ta = el('textarea', { rows: '4', id: `open-${i}`, placeholder: 'Tu respuesta…' });
+    const card = el('article', { class: 'q' }, el('span', { class: 'n' }, `Pregunta abierta ${i + 1}`), el('p', { class: 'stem' }, stem), ta);
+    const show = el('button', { class: 'btn', type: 'button', onclick: () => {
+      show.remove();
+      const check = el('div', { class: 'selfcheck' }, '¿Tu respuesta tenía los puntos clave?',
+        el('button', { class: 'btn', type: 'button', onclick: () => { mark('abiertas', true); check.replaceChildren('Marcada como correcta.'); } }, 'Sí'),
+        el('button', { class: 'btn', type: 'button', onclick: () => { mark('abiertas', false); check.replaceChildren('Marcada para repasar.'); } }, 'Me faltó'));
+      card.append(el('div', { class: 'model' }, el('div', {}, model), el('ul', {}, keys.map(k => el('li', {}, k)))), check);
+    }}, 'Ver respuesta modelo');
+    card.append(el('div', {}, show));
+    p.append(card);
+  });
+}
+
+function buildCmd(p, shuf) {
+  p.append(el('p', { class: 'intro' }, 'Cada comando tiene un error. Escribe la versión corregida y luego revisa.'));
+  (shuf ? shuffle(CMD) : CMD).forEach(([goal, wrong, right, why], i) => {
+    const inp = el('input', { class: 'ans', id: `cmd-${i}`, placeholder: 'Comando corregido…', autocomplete: 'off', spellcheck: 'false' });
+    const card = el('article', { class: 'q' }, el('span', { class: 'n' }, `Comando ${i + 1}`), el('p', { class: 'stem' }, goal), el('div', { class: 'wrongcmd' }, wrong), inp);
+    const show = el('button', { class: 'btn', type: 'button', onclick: () => {
+      show.remove();
+      const check = el('div', { class: 'selfcheck' }, '¿Lo tenías bien?',
+        el('button', { class: 'btn', type: 'button', onclick: () => { mark('comandos', true); check.replaceChildren('Marcado como correcto.'); } }, 'Sí'),
+        el('button', { class: 'btn', type: 'button', onclick: () => { mark('comandos', false); check.replaceChildren('Marcado para repasar.'); } }, 'No'));
+      card.append(el('div', { class: 'rightcmd' }, right), el('p', { class: 'why' }, why), check);
+    }}, 'Ver solución');
+    card.append(el('div', {}, show));
+    p.append(card);
+  });
+}
+
+const BUILDERS = { mcq: buildMCQ, pareo: buildMatch, vf: buildVF, abiertas: buildOpen, comandos: buildCmd };
+function build(id, shuf) {
+  const p = document.getElementById('panel-' + id);
+  p.replaceChildren();
+  BUILDERS[id](p, shuf);
+  renderScore(id);
+}
+function select(id) {
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.id === id)));
+  document.querySelectorAll('section.panel').forEach(s => s.hidden = s.id !== 'panel-' + id);
+  renderScore(id);
+  try { localStorage.setItem('quiz-tab', id); } catch {}
+}
+
+const tabs = document.getElementById('tabs'), panels = document.getElementById('panels');
+TABS.forEach(([id, name, n]) => {
+  tabs.append(el('button', { class: 'tab', role: 'tab', 'data-id': id, type: 'button', onclick: () => select(id) }, `${name} (${n})`));
+  panels.append(el('section', { class: 'panel', id: 'panel-' + id, role: 'tabpanel' }));
+  build(id, false);
+});
+let start = (location.hash || '').slice(1);
+if (!BUILDERS[start]) { try { start = localStorage.getItem('quiz-tab') || 'mcq'; } catch { start = 'mcq'; } }
+select(BUILDERS[start] ? start : 'mcq');
+</script>

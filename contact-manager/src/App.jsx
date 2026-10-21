@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import './App.css'
 
 // Cambia esto para la Guía 2 (Ejercicio 2): v1 -> v2, construyes y subes la nueva versión
-const VERSION = 'v1'
+const VERSION = 'v2'
 
 const CLAVE = 'contactos'
 
