@@ -12,6 +12,8 @@ El proyecto de la evaluación anterior (LESSAI) se queda en su carpeta, sin camb
 | `guias/02-guia2-dockerhub.md` | Guía 2: `docker login`, `tag`, `push`, `pull`, versiones |
 | `guias/03-guia3-compose.md` | Guía 3: `compose.yaml`, `docker compose up/ps/logs/down` + base de datos |
 | `guias/04-comandos-y-errores.md` | Hoja rápida: todos los comandos y cómo salir de los errores típicos |
+| `quiz/quiz-docker.html` | Quiz de teoría interactivo (abrir en el navegador): subrayar, pareo, V/F, abiertas y comandos |
+| `quiz/quiz-docker.md` | Las mismas preguntas con todas las respuestas |
 
 ## Cómo usarlo
 
